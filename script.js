@@ -6,11 +6,20 @@ document.getElementById('extractImageUpload').addEventListener('change', extract
 document.getElementById('watermarkingBtn').addEventListener('click', () => {
     document.getElementById('leftRow').classList.remove('hidden');
     document.getElementById('rightRow').classList.add('hidden');
-})
+});
 document.getElementById('extractionBtn').addEventListener('click', () => {
     document.getElementById('leftRow').classList.add('hidden');
     document.getElementById('rightRow').classList.remove('hidden');
-})
+});
+
+function generatePseudorandomSequence(seed, length) {
+    let sequence = new Uint8Array(length);
+    let random = new Math.seedrandom(seed); // Pseudorandom number generator with seed
+    for (let i = 0; i < length; i++) {
+        sequence[i] = Math.floor(random() * length);
+    }
+    return sequence;
+}
 
 
 let baseImage = null;
@@ -32,7 +41,7 @@ function handleImage(e) {
             preview.appendChild(img);
         };
         baseImage.src = event.target.result;
-    }
+    };
     reader.readAsDataURL(e.target.files[0]);
 }
 
@@ -42,6 +51,12 @@ function handleWatermark(e) {
     reader.onload = function(event) {
         watermarkImage = new Image();
         watermarkImage.onload = function() {
+            // Mengecek apakah ukuran watermark melebihi ukuran gambar dasar
+            if (watermarkImage.width > baseImage.width || watermarkImage.height > baseImage.height) {
+                alert('Ukuran watermark tidak boleh melebihi ukuran gambar dasar.');
+                return;
+            }
+
             drawImages();
             // Menampilkan pratinjau watermark
             const preview = document.getElementById('watermarkPreview');
@@ -52,7 +67,7 @@ function handleWatermark(e) {
             preview.appendChild(img);
         };
         watermarkImage.src = event.target.result;
-    }
+    };
     reader.readAsDataURL(e.target.files[0]);
 }
 
@@ -76,10 +91,13 @@ function drawImages() {
         watermarkCtx.drawImage(watermarkImage, 0, 0, baseImage.width, baseImage.height);
         const watermarkData = watermarkCtx.getImageData(0, 0, watermarkCanvas.width, watermarkCanvas.height).data;
 
+        const seed = document.getElementById('seedInput').value;
+        const sequence = generatePseudorandomSequence(seed, pixels.length / 4);
+
         for (let i = 0; i < pixels.length; i += 4) {
-            pixels[i] = (pixels[i] & 0xF0) | ((watermarkData[i] & 0xF0) >> 4);
-            pixels[i + 1] = (pixels[i + 1] & 0xF0) | ((watermarkData[i + 1] & 0xF0) >> 4);
-            pixels[i + 2] = (pixels[i + 2] & 0xF0) | ((watermarkData[i + 2] & 0xF0) >> 4);
+            pixels[i] = (pixels[i] & 0xF8) | ((watermarkData[i] & 0xE0) >> 5);
+            pixels[i + 1] = (pixels[i + 1] & 0xF8) | ((watermarkData[i + 1] & 0xE0) >> 5);
+            pixels[i + 2] = (pixels[i + 2] & 0xF8) | ((watermarkData[i + 2] & 0xE0) >> 5);
         }
 
         ctx.putImageData(imageData, 0, 0);
@@ -128,9 +146,9 @@ function extractWatermark(e) {
             const watermarkPixels = watermarkData.data;
 
             for (let i = 0; i < pixels.length; i += 4) {
-                const redBit = (pixels[i] & 0x0F) << 4;
-                const greenBit = (pixels[i + 1] & 0x0F) << 4;
-                const blueBit = (pixels[i + 2] & 0x0F) << 4;
+                const redBit = (pixels[i] & 0x07) << 5;
+                const greenBit = (pixels[i + 1] & 0x07) << 5;
+                const blueBit = (pixels[i + 2] & 0x07) << 5;
 
                 watermarkPixels[i] = redBit;
                 watermarkPixels[i + 1] = greenBit;
@@ -139,9 +157,8 @@ function extractWatermark(e) {
             }
 
             watermarkCtx.putImageData(watermarkData, 0, 0);
-        }
-        
+        };
         img.src = event.target.result;
-    }
+    };
     reader.readAsDataURL(e.target.files[0]);
 }
